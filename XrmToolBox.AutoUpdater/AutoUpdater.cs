@@ -49,6 +49,24 @@ namespace XrmToolBox.AutoUpdater
                 Directory.CreateDirectory(packageFolder);
             }
 
+            var processes = Process.GetProcessesByName("xrmtoolbox");
+            if (processes.Length > 0)
+            {
+                if (MessageBox.Show(this,
+                        @"We need to close all XrmToolBox instances to perform the update. Do you want to continue?",
+                        @"Question", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
+                {
+                    foreach (var process in processes)
+                    {
+                        process.Kill();
+                    }
+                }
+                else
+                {
+                    Close();
+                }
+            }
+
             using (var client = new WebClient())
             {
                 lblProgress.Text = "Downloading new version of XrmToolBox...";
@@ -65,10 +83,46 @@ namespace XrmToolBox.AutoUpdater
 
             args.RemoveAt(0);
             args.RemoveAt(0);
+            var xtbPath = String.Empty;
 
-            Process.Start(args.First(), string.Join(" ", args.Skip(1)));
+            /* if path is already quoted */
+            if (args[0].StartsWith("\""))
+            {
+                xtbPath = args.First();
+            }
+            else
+            {
+                /* handle case where there is at leat one space in the path of the exe */
+               
+                foreach (var arg in args)
+                {
+                    xtbPath = xtbPath + arg + " ";
+                    /* the path is complete */
+                    if (arg.ToLower().EndsWith("toolbox.exe"))
+                    {
+                        break;
+                    }
 
-            Close();
+                }
+
+                /* remove extra spaces */
+                xtbPath = xtbPath.Trim();
+                xtbPath = $"\"{xtbPath}\"";
+            }
+
+            try
+            {
+                Process.Start(xtbPath, string.Join(" ", args.Skip(1)));
+
+                Close();
+            }
+            catch (Exception error)
+            {
+                MessageBox.Show(this,
+                    $@"Unable to start XrmToolBox for the following reason: {error.Message}. File not found : {
+                            xtbPath
+                        }", @"Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
         }
 
         private void Client_DownloadFileCompleted(object sender, AsyncCompletedEventArgs e)

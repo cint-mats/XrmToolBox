@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections;
+using System.Globalization;
 using System.Windows.Forms;
 
 namespace XrmToolBox.PluginsStore
@@ -71,15 +72,26 @@ namespace XrmToolBox.PluginsStore
             var xValue = x.SubItems[col].Text;
             var yValue = y.SubItems[col].Text;
 
-            int ixValue, iyValue;
-            if(int.TryParse(xValue, out ixValue) && int.TryParse(yValue, out iyValue))
+            decimal ixValue, iyValue;
+            if (decimal.TryParse(xValue, out ixValue) && decimal.TryParse(yValue, out iyValue))
             {
-                if(innerOrder == SortOrder.Ascending)
+                if (innerOrder == SortOrder.Ascending)
                 {
                     return ixValue < iyValue ? 1 : -1;
                 }
 
                 return iyValue < ixValue ? 1 : -1;
+            }
+
+            DateTime dxValue, dyValue;
+            if (DateTime.TryParse(xValue, CultureInfo.CurrentUICulture.DateTimeFormat, DateTimeStyles.None, out dxValue) && DateTime.TryParse(yValue, CultureInfo.CurrentUICulture.DateTimeFormat, DateTimeStyles.None, out dyValue))
+            {
+                if (innerOrder == SortOrder.Ascending)
+                {
+                    return dxValue < dyValue ? 1 : -1;
+                }
+
+                return dyValue < dxValue ? 1 : -1;
             }
 
             if (innerOrder == SortOrder.Ascending)

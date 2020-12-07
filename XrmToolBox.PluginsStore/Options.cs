@@ -1,5 +1,4 @@
 ﻿using System;
-using System.ComponentModel;
 using System.IO;
 using System.Windows;
 using System.Xml;
@@ -16,17 +15,8 @@ namespace XrmToolBox.PluginsStore
         private Options()
         {
             DisplayPluginsStoreOnStartup = true;
-            UseLegacy = true;
+            UseLegacy = false;
         }
-
-        public bool? PluginsStoreShowIncompatible { get; set; }
-        public bool? PluginsStoreShowUpdates { get; set; }
-        public bool? PluginsStoreShowNew { get; set; }
-        public bool? PluginsStoreShowInstalled { get; set; }
-        public bool? DisplayPluginsStoreOnStartup { get; set; }
-        public bool IsInitialized { get; set; }
-
-        public bool? UseLegacy { get; set; }
 
         public static Options Instance
         {
@@ -38,7 +28,7 @@ namespace XrmToolBox.PluginsStore
                     if (!Load(out instance, out errorMessage))
                     {
                         MessageBox.Show(
-                            "An error occured when loading Plugins Store settings. A new settings file has been created\n\n" +
+                            "An error occured when loading Tool Library settings. A new settings file has been created\n\n" +
                             errorMessage);
 
                         return new Options();
@@ -49,6 +39,39 @@ namespace XrmToolBox.PluginsStore
 
                 return instance;
             }
+        }
+
+        public bool? DisplayPluginsStoreOnStartup { get; set; }
+        public bool IsInitialized { get; set; }
+        public bool? PluginsStoreShowIncompatible { get; set; }
+        public bool? PluginsStoreShowInstalled { get; set; }
+        public bool? PluginsStoreShowNew { get; set; }
+        public bool? PluginsStoreShowUpdates { get; set; }
+        public bool? UseLegacy { get; set; }
+
+        public object Clone()
+        {
+            return new Options
+            {
+                DisplayPluginsStoreOnStartup = DisplayPluginsStoreOnStartup,
+                PluginsStoreShowIncompatible = PluginsStoreShowIncompatible,
+                PluginsStoreShowInstalled = PluginsStoreShowInstalled,
+                PluginsStoreShowNew = PluginsStoreShowNew,
+                PluginsStoreShowUpdates = PluginsStoreShowUpdates,
+                UseLegacy = UseLegacy
+            };
+        }
+
+        public void Save()
+        {
+            if (!Directory.Exists(Paths.SettingsPath))
+            {
+                Directory.CreateDirectory(Paths.SettingsPath);
+            }
+
+            var settingsFile = Path.Combine(Paths.SettingsPath, OptionFileName);
+
+            XmlSerializerHelper.SerializeToFile(this, settingsFile);
         }
 
         private static bool Load(out Options options, out string errorMessage)
@@ -83,30 +106,6 @@ namespace XrmToolBox.PluginsStore
 
             options = new Options();
             return true;
-        }
-
-        public object Clone()
-        {
-            return new Options
-            {
-                DisplayPluginsStoreOnStartup = DisplayPluginsStoreOnStartup,
-                PluginsStoreShowIncompatible = PluginsStoreShowIncompatible,
-                PluginsStoreShowInstalled = PluginsStoreShowInstalled,
-                PluginsStoreShowNew = PluginsStoreShowNew,
-                PluginsStoreShowUpdates = PluginsStoreShowUpdates
-            };
-        }
-
-        public void Save()
-        {
-            if (!Directory.Exists(Paths.SettingsPath))
-            {
-                Directory.CreateDirectory(Paths.SettingsPath);
-            }
-
-            var settingsFile = Path.Combine(Paths.SettingsPath, OptionFileName);
-
-            XmlSerializerHelper.SerializeToFile(this, settingsFile);
         }
     }
 }

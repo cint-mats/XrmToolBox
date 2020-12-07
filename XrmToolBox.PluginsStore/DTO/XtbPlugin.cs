@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.Globalization;
 using System.Linq;
 using System.Runtime.Serialization;
 using System.Windows.Forms;
@@ -36,26 +37,29 @@ namespace XrmToolBox.PluginsStore.DTO
 
         public List<string> Files
         {
-            get { return FilesList.Split(new[] { "\r\n" }, StringSplitOptions.RemoveEmptyEntries).Where(f => f.ToLower().IndexOf("plugins/", StringComparison.Ordinal) >= 0).ToList(); }
+            get { return FilesList.Split(new[] { "\r\n", "\n" }, StringSplitOptions.RemoveEmptyEntries).Where(f => f.ToLower().IndexOf("plugins/", StringComparison.Ordinal) >= 0).ToList(); }
         }
 
         [DataMember(Name = "mctools_files")]
         public string FilesList { get; set; }
 
         [DataMember(Name = "mctools_firstreleasedate")]
-        public DateTime FirstReleaseDate { get; internal set; }
+        public DateTime? FirstReleaseDate { get; internal set; }
 
         [DataMember(Name = "mctools_pluginid")]
         public string Id { get; set; }
 
         [DataMember(Name = "mctools_latestreleasedate")]
-        public DateTime LatestReleaseDate { get; internal set; }
+        public DateTime? LatestReleaseDate { get; internal set; }
 
         [DataMember(Name = "mctools_latestversionid")]
         public string LatestReleaseId { get; internal set; }
 
         [DataMember(Name = "mctools_latestreleasenote")]
         public string LatestReleaseNote { get; internal set; }
+
+        [DataMember(Name = "mctools_licenseurl")]
+        public string LicenseUrl { get; internal set; }
 
         [DataMember(Name = "list-id")]
         public string ListId { get; set; }
@@ -74,6 +78,9 @@ namespace XrmToolBox.PluginsStore.DTO
 
         [DataMember(Name = "mctools_projecturl")]
         public string ProjectUrl { get; internal set; }
+
+        [DataMember(Name = "mctools_requirelicenseacceptance")]
+        public bool? RequireLicenseAcceptance { get; internal set; }
 
         public bool RequiresXtbRestart { get; internal set; }
 
@@ -99,6 +106,7 @@ namespace XrmToolBox.PluginsStore.DTO
             item.SubItems.Add(AverageFeedbackRating.ToString("N2"));
             item.SubItems.Add(packageVersion.ToString());
             item.SubItems.Add(CurrentVersion?.ToString());
+            item.SubItems.Add(LatestReleaseDate?.ToString(CultureInfo.CurrentUICulture.DateTimeFormat.ShortDatePattern));
             item.SubItems.Add(Description);
             item.SubItems.Add(Authors);
             var actionItem = item.SubItems.Add("None");
@@ -140,10 +148,18 @@ namespace XrmToolBox.PluginsStore.DTO
     [DataContract]
     public class XtbPlugins
     {
+        public XtbPlugins()
+        {
+            Plugins = new List<XtbPlugin>();
+        }
+
+        [DataMember(Name = "odata.nextLink")]
+        public string NextLink { get; set; }
+
         [DataMember(Name = "odata.metadata")]
         public string OdataMetadata { get; set; }
 
         [DataMember(Name = "value")]
-        public List<XtbPlugin> Plugins { get; set; }
+        public List<XtbPlugin> Plugins { get; set; } = new List<XtbPlugin>();
     }
 }

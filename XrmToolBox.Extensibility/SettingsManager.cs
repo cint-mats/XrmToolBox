@@ -1,12 +1,15 @@
-﻿using System;
+﻿using McTools.Xrm.Connection;
+using System;
 using System.IO;
+using System.Linq;
 using System.Xml;
-using McTools.Xrm.Connection;
 
 namespace XrmToolBox.Extensibility
 {
     public class SettingsManager
     {
+        private static readonly char[] IllegalChars = Path.GetInvalidFileNameChars();
+
         /// <summary>
         /// singleton instance of SettingsManager
         /// </summary>
@@ -15,24 +18,13 @@ namespace XrmToolBox.Extensibility
         /// <summary>
         /// Initialize a new instance of class <see cref="SettingsManager"/>
         /// </summary>
-        SettingsManager()
-        {}
+        private SettingsManager()
+        { }
 
         /// <summary>
         /// Gets the singleton instance of SettingsManager
         /// </summary>
-        public static SettingsManager Instance
-        {
-            get
-            {
-                if (_instance == null)
-                {
-                    _instance = new SettingsManager();
-                }
-
-                return _instance;
-            }
-        }
+        public static SettingsManager Instance => _instance ?? (_instance = new SettingsManager());
 
         /// <summary>
         /// Save a settings object to a XML serialized file
@@ -42,19 +34,14 @@ namespace XrmToolBox.Extensibility
         /// <param name="name">Name of the settings file<remarks>Optional parameter that completes the settings file name</remarks></param>
         public void Save(Type pluginType, object settings, string name = null)
         {
-            if (!Directory.Exists(Paths.SettingsPath))
-            {
-                Directory.CreateDirectory(Paths.SettingsPath);
-            }
+            name = FormatName(name);
+            ConditionallyCreateSettingsDirectory();
 
-            var filePath = Path.Combine(Paths.SettingsPath,
-                string.Format("{0}{1}{2}.xml", pluginType.Assembly.FullName.Split(',')[0], string.IsNullOrEmpty(name) ? "" : "_", name));
+            var filePath = GetPluginSettingsPath(pluginType, name);
 
             XmlSerializerHelper.SerializeToFile(settings, filePath);
 
-            // Fix file created before using Assembly name
-            filePath = Path.Combine(Paths.SettingsPath,
-               GetSafeFilename(string.Format("{0}{1}{2}.xml", pluginType.Name, string.IsNullOrEmpty(name) ? "" : "_", name)));
+            filePath = GetLegacyPluginSettingsPath(pluginType, name);
 
             if (File.Exists(filePath))
             {
@@ -76,41 +63,89 @@ namespace XrmToolBox.Extensibility
         /// </remarks>
         public bool TryLoad<T>(Type pluginType, out T settingsObject, string name = null)
         {
+            name = FormatName(name);
+            ConditionallyCreateSettingsDirectory();
+
+            var filePath = GetPluginSettingsPath(pluginType, name);
+
+            if (File.Exists(filePath))
+            {
+                settingsObject = DeserializeXmlFile<T>(filePath);
+                return true;
+            }
+
+            filePath = GetLegacyPluginSettingsPath(pluginType, name);
+
+            if (File.Exists(filePath))
+            {
+                settingsObject = DeserializeXmlFile<T>(filePath);
+                return true;
+            }
+
+            settingsObject = default(T);
+            return false;
+        }
+
+        /// <summary>
+        /// Settings used to be loaded by  Fix file created before using Assembly name
+        /// </summary>
+        /// <param name="pluginType"></param>
+        /// <param name="name"></param>
+        /// <returns></returns>
+        private string GetLegacyPluginSettingsPath(Type pluginType, string name)
+        {
+            return Path.Combine(Paths.SettingsPath,
+                GetSafeFilename(pluginType.Name + name));
+        }
+
+        private string GetPluginSettingsPath(Type pluginType, string name)
+        {
+            return Path.Combine(Paths.SettingsPath,
+                GetSafeFilename(pluginType.Assembly.FullName.Split(',')[0] + name));
+        }
+
+        private static void ConditionallyCreateSettingsDirectory()
+        {
             if (!Directory.Exists(Paths.SettingsPath))
             {
                 Directory.CreateDirectory(Paths.SettingsPath);
             }
+        }
 
-            var filePath = Path.Combine(Paths.SettingsPath,
-               GetSafeFilename(string.Format("{0}{1}{2}.xml", pluginType.Assembly.FullName.Split(',')[0],
-                    string.IsNullOrEmpty(name) ? "" : "_", name)));
-
-            if (File.Exists(filePath))
+        private static T DeserializeXmlFile<T>(string filePath)
+        {
+            try
             {
                 var document = new XmlDocument();
                 document.Load(filePath);
 
-                settingsObject = (T) XmlSerializerHelper.Deserialize(document.OuterXml, typeof(T));
-                return true;
+                var settingsObject = (T) XmlSerializerHelper.Deserialize(document.OuterXml, typeof(T));
+                return settingsObject;
             }
-
-            // Check again with a different name to handle settings files 
-            // created before fixing the name used
-            filePath = Path.Combine(Paths.SettingsPath,
-                string.Format("{0}{1}{2}.xml", pluginType.Name, string.IsNullOrEmpty(name) ? "" : "_", name));
-
-            if (File.Exists(filePath))
+            catch (Exception ex)
             {
-                var document = new XmlDocument();
-                document.Load(filePath);
+                throw new Exception($"Error attempting to loading and deserializing file \"{filePath}\"", ex);
+            }
+        }
 
-                settingsObject = (T) XmlSerializerHelper.Deserialize(document.OuterXml, typeof(T));
-                return true;
+        private string FormatName(string name)
+        {
+            name = string.IsNullOrEmpty(name)
+                ? string.Empty
+                : "_" + CleanStringForFileName(name);
+            return name + ".xml";
+        }
+
+        private string CleanStringForFileName(string text)
+        {
+            var cleanedText = "";
+
+            foreach (var t in text)
+            {
+                cleanedText += IllegalChars.Contains(t) ? '_' : t;
             }
 
-
-            settingsObject = default(T);
-            return false;
+            return cleanedText;
         }
 
         private string GetSafeFilename(string filename)

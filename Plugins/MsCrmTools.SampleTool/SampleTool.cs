@@ -3,16 +3,16 @@
 // CODEPLEX: http://xrmtoolbox.codeplex.com
 // BLOG: http://mscrmtools.blogspot.com
 
+using Microsoft.Crm.Sdk.Messages;
 using System;
 using System.Windows.Forms;
-using Microsoft.Crm.Sdk.Messages;
 using XrmToolBox.Extensibility;
 using XrmToolBox.Extensibility.Args;
 using XrmToolBox.Extensibility.Interfaces;
 
 namespace MsCrmTools.SampleTool
 {
-    public partial class SampleTool : PluginControlBase, IGitHubPlugin, ICodePlexPlugin, IPayPalPlugin, IHelpPlugin, IStatusBarMessenger, IShortcutReceiver
+    public partial class SampleTool : PluginControlBase, IGitHubPlugin, ICodePlexPlugin, IPayPalPlugin, IHelpPlugin, IStatusBarMessenger, IShortcutReceiver, IAboutPlugin, IDuplicatableTool
     {
         #region Base tool implementation
 
@@ -41,6 +41,13 @@ namespace MsCrmTools.SampleTool
 
         public event EventHandler<StatusBarMessageEventArgs> SendMessageToStatusBar;
 
+        public override void ClosingPlugin(PluginCloseInfo info)
+        {
+            MessageBox.Show("Closing tool");
+
+            base.ClosingPlugin(info);
+        }
+
         public void ProcessWhoAmI()
         {
             bool isMultipleCallChecked = cbMultipleCalls.Checked;
@@ -56,6 +63,7 @@ namespace MsCrmTools.SampleTool
                     // a long running process made of multiple calls
                     do
                     {
+                        w.ReportProgress(10, "Un message...");
                         if (w.CancellationPending)
                         {
                             e.Cancel = true;
@@ -74,7 +82,7 @@ namespace MsCrmTools.SampleTool
                     // If progress has to be notified to user, through the
                     // status bar, use the following method
                     if (SendMessageToStatusBar != null)
-                        SendMessageToStatusBar(this, new StatusBarMessageEventArgs(50, "progress at 50%"));
+                        SendMessageToStatusBar(this, new StatusBarMessageEventArgs(e.ProgressPercentage, e.UserState.ToString()));
                 },
                 PostWorkCallBack = e =>
                 {
@@ -94,16 +102,16 @@ namespace MsCrmTools.SampleTool
             });
         }
 
+        private void tsbCancel_Click(object sender, EventArgs e)
+        {
+            CancelWorker();
+            tsbCancel.Enabled = false;
+            MessageBox.Show("Cancelled");
+        }
+
         private void tsbClose_Click(object sender, EventArgs e)
         {
             CloseTool();
-        }
-
-        public override void ClosingPlugin(PluginCloseInfo info)
-        {
-            //MessageBox.Show("Custom logic here");
-
-            base.ClosingPlugin(info);
         }
 
         private void tsbWhoAmI_Click(object sender, EventArgs e)
@@ -111,13 +119,6 @@ namespace MsCrmTools.SampleTool
             HideNotification();
 
             ExecuteMethod(ProcessWhoAmI);
-        }
-
-        private void tsbCancel_Click(object sender, EventArgs e)
-        {
-            CancelWorker();
-            tsbCancel.Enabled = false;
-            MessageBox.Show("Cancelled");
         }
 
         #endregion Base tool implementation
@@ -170,36 +171,67 @@ namespace MsCrmTools.SampleTool
 
         #region Shortcut Receiver implementation
 
+        public void ReceiveKeyDownShortcut(KeyEventArgs e)
+        {
+            //   MessageBox.Show("A KeyDown event was received!");
+        }
+
+        public void ReceiveKeyPressShortcut(KeyPressEventArgs e)
+        {
+            // MessageBox.Show("A KeyPress event was received!");
+        }
+
+        public void ReceiveKeyUpShortcut(KeyEventArgs e)
+        {
+            //MessageBox.Show("A KeyUp event was received!");
+        }
+
+        public void ReceivePreviewKeyDownShortcut(PreviewKeyDownEventArgs e)
+        {
+            //MessageBox.Show("A PreviewKeyDown event was received!");
+        }
+
         public void ReceiveShortcut(KeyEventArgs e)
         {
             MessageBox.Show(e.ToString());
         }
 
-        public void ReceiveKeyDownShortcut(KeyEventArgs e)
-        {
-            MessageBox.Show("A KeyDown event was received!");
-        }
-
-        public void ReceiveKeyPressShortcut(KeyPressEventArgs e)
-        {
-            MessageBox.Show("A KeyPress event was received!");
-        }
-
-        public void ReceiveKeyUpShortcut(KeyEventArgs e)
-        {
-            MessageBox.Show("A KeyUp event was received!");
-        }
-
-        public void ReceivePreviewKeyDownShortcut(PreviewKeyDownEventArgs e)
-        {
-            MessageBox.Show("A PreviewKeyDown event was received!");
-        }
-
         #endregion Shortcut Receiver implementation
+
+        #region IDuplicatableTool implementation
+
+        public event EventHandler<DuplicateToolArgs> DuplicateRequested;
+
+        public void ApplyState(object state)
+        {
+            txtState.Text = state.ToString();
+        }
+
+        public object GetState()
+        {
+            return txtState.Text;
+        }
+
+        private void tsbDuplicate_Click(object sender, EventArgs e)
+        {
+            DuplicateRequested?.Invoke(this, new DuplicateToolArgs("My custom state", true));
+        }
+
+        #endregion IDuplicatableTool implementation
 
         private void SampleTool_Load(object sender, EventArgs e)
         {
             ShowInfoNotification("This is a notification that can lead to XrmToolBox repository", new Uri("http://github.com/MscrmTools/XrmToolBox"));
         }
+
+        #region IAboutPlugin implementation
+
+        public void ShowAboutDialog()
+        {
+            MessageBox.Show(@"This is a sample tool", @"About Sample Tool", MessageBoxButtons.OK,
+                MessageBoxIcon.Information);
+        }
+
+        #endregion IAboutPlugin implementation
     }
 }

@@ -29,17 +29,20 @@ namespace XrmToolBox.Extensibility
 
         public PluginControlBase()
         {
-            logManager = new LogManager(GetType());    
+            logManager = new LogManager(GetType());
         }
 
         public ConnectionDetail ConnectionDetail { get; set; }
 
+        [Category("Tool Control Properties")]
+        [Description("Icon")]
+        public Icon PluginIcon { get; set; }
+
+        public Image TabIcon { get; set; }
+
         public void CloseTool()
         {
-            if (OnCloseTool != null)
-            {
-                OnCloseTool(this, null);
-            }
+            OnCloseTool?.Invoke(this, null);
         }
 
         [Obsolete("This has been renamed to CloseTool.  Call that method instead, and if there is any required logic for Closing override the ClosingPlugin Method", true)]
@@ -48,13 +51,13 @@ namespace XrmToolBox.Extensibility
             CloseTool();
         }
 
-        public Image TabIcon { get; set; }
-        
         #region IMsCrmToolsPluginUserControl Members
 
         public event EventHandler OnCloseTool;
 
         public event EventHandler OnRequestConnection;
+
+        public event EventHandler OnWorkAsync;
 
         public IOrganizationService Service { get; private set; }
 
@@ -115,6 +118,11 @@ namespace XrmToolBox.Extensibility
             }
         }
 
+        protected virtual void OnConnectionRequested(object sender, RequestConnectionEventArgs e)
+        {
+            OnRequestConnection?.Invoke(sender, e);
+        }
+
         #endregion IMsCrmToolsPluginUserControl Members
 
         #region IWorkerHost
@@ -146,6 +154,8 @@ namespace XrmToolBox.Extensibility
             info.Host = this;
             _worker = new Worker();
             _worker.WorkAsync(info);
+
+            OnWorkAsync?.Invoke(this, new EventArgs());
         }
 
         #region Obsolete WorkAsync Calls
@@ -189,7 +199,6 @@ namespace XrmToolBox.Extensibility
                 MessageHeight = messageHeight,
                 PostWorkCallBack = callback,
                 ProgressChanged = progressChanged
-
             };
             WorkAsync(info);
         }
@@ -204,7 +213,6 @@ namespace XrmToolBox.Extensibility
                 IsCancelable = enableCancellation,
                 MessageWidth = messageWidth,
                 MessageHeight = messageHeight
-
             };
             WorkAsync(info);
         }
@@ -236,7 +244,6 @@ namespace XrmToolBox.Extensibility
                 MessageHeight = messageHeight,
                 PostWorkCallBack = callback,
                 ProgressChanged = progressChanged
-
             };
             WorkAsync(info);
         }
@@ -359,13 +366,28 @@ namespace XrmToolBox.Extensibility
         #region Logs
 
         /// <summary>
+        /// Path for the log file
+        /// </summary>
+        protected string LogFilePath => logManager?.FilePath;
+
+        /// <summary>
+        /// Writes an error message in the log
+        /// </summary>
+        /// <param name="message">Message</param>
+        /// <param name="args">Message parameters</param>
+        protected void LogError(string message, params object[] args)
+        {
+            logManager.LogError(message, args);
+        }
+
+        /// <summary>
         /// Writes an information message in the log
         /// </summary>
         /// <param name="message">Message</param>
         /// <param name="args">Message parameters</param>
         protected void LogInfo(string message, params object[] args)
         {
-           logManager.LogInfo(message, args);
+            logManager.LogInfo(message, args);
         }
 
         /// <summary>
@@ -379,33 +401,45 @@ namespace XrmToolBox.Extensibility
         }
 
         /// <summary>
-        /// Writes an error message in the log
-        /// </summary>
-        /// <param name="message">Message</param>
-        /// <param name="args">Message parameters</param>
-        protected void LogError(string message, params object[] args)
-        {
-            logManager.LogError(message, args);
-        }
-
-        /// <summary>
-        /// Opens the log file associated with the current plugin 
+        /// Opens the log file associated with the current plugin
         /// </summary>
         protected void OpenLogFile()
         {
             logManager.OpenLog();
         }
 
-        #endregion
+        #endregion Logs
 
         #region Noticiation zone
+
+        protected void HideNotification()
+        {
+            var ctrls = Parent.Controls.Find("NotifPanel", false);
+            if (ctrls.Length == 1)
+            {
+                ctrls[0].Visible = false;
+            }
+        }
+
+        protected void ShowErrorNotification(string message, Uri moreInfoUri, int height = 32)
+        {
+            var ctrls = Parent.Controls.Find("NotifPanel", false);
+            if (ctrls.Length == 1)
+            {
+                ((NotificationArea)ctrls[0]).ShowErrorNotification(message, moreInfoUri, height);
+            }
+            else
+            {
+                throw new Exception("Unable to find Notification Area control");
+            }
+        }
 
         protected void ShowInfoNotification(string message, Uri moreInfoUri, int height = 32)
         {
             var ctrls = Parent.Controls.Find("NotifPanel", false);
             if (ctrls.Length == 1)
             {
-                ((NotificationArea) ctrls[0]).ShowInfoNotification(message, moreInfoUri, height);
+                ((NotificationArea)ctrls[0]).ShowInfoNotification(message, moreInfoUri, height);
             }
             else
             {
@@ -426,28 +460,6 @@ namespace XrmToolBox.Extensibility
             }
         }
 
-        protected void ShowErrorNotification(string message, Uri moreInfoUri, int height = 32)
-        {
-            var ctrls = Parent.Controls.Find("NotifPanel", false);
-            if (ctrls.Length == 1)
-            {
-                ((NotificationArea)ctrls[0]).ShowErrorNotification(message, moreInfoUri, height);
-            }
-            else
-            {
-                throw new Exception("Unable to find Notification Area control");
-            }
-        }
-
-        protected void HideNotification()
-        {
-            var ctrls = Parent.Controls.Find("NotifPanel", false);
-            if (ctrls.Length == 1)
-            {
-                ctrls[0].Visible = false;
-            }
-        }
-
-        #endregion
+        #endregion Noticiation zone
     }
 }

@@ -1,4 +1,6 @@
-﻿using System.ComponentModel.Composition;
+﻿using System;
+using System.ComponentModel.Composition;
+using System.IO;
 using XrmToolBox.Extensibility;
 using XrmToolBox.Extensibility.Interfaces;
 
@@ -31,7 +33,7 @@ namespace MsCrmTools.SampleTool
     ExportMetadata("BackgroundColor", "Lavender"),
     ExportMetadata("PrimaryFontColor", "#000000"),
     ExportMetadata("SecondaryFontColor", "DarkGray")]
-    public class Plugin : PluginBase
+    public class Plugin : PluginBase, INoConnectionRequired
     {
         /// <summary>
         /// This method return the actual usercontrol that will
